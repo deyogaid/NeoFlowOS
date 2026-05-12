@@ -1,8 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Idea, Mood, Niche, Platform } from '../types';
-import { Save, X, Sparkles, ChevronDown } from 'lucide-react';
+import { Save, X, Sparkles, ChevronDown, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
+import { useFirebase } from './FirebaseProvider';
+import { db, handleFirestoreError, OperationType } from '../lib/firebase';
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 
 interface QuickCaptureProps {
   onSave: (idea: Idea) => void;
@@ -14,6 +17,8 @@ const MOODS: Mood[] = ['melancholic', 'dreamy', 'futuristic', 'poetic', 'cinemat
 const PLATFORMS: Platform[] = ['tiktok', 'reels', 'shorts', 'instagram', 'portfolio'];
 
 export default function QuickCapture({ onSave, setActiveView }: QuickCaptureProps) {
+  const { user } = useFirebase();
+  const [isSaving, setIsSaving] = useState(false);
   const [idea, setIdea] = useState<Partial<Idea>>({
     title: '',
     description: '',
@@ -23,30 +28,53 @@ export default function QuickCapture({ onSave, setActiveView }: QuickCaptureProp
     status: 'Ide'
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!idea.title) return;
+    if (!idea.title || isSaving) return;
+
+    setIsSaving(true);
+    const ideaId = Math.random().toString(36).substring(7);
+    const timestamp = Date.now();
 
     const newIdea: Idea = {
-      id: Math.random().toString(36).substring(7),
+      id: ideaId,
       title: idea.title!,
       description: idea.description || '',
       mood: idea.mood as Mood,
       niche: idea.niche as Niche,
       platform: idea.platform as Platform,
       status: 'Ide',
-      createdAt: Date.now()
+      createdAt: timestamp
     };
 
-    onSave(newIdea);
-    setActiveView('dashboard');
+    try {
+      if (user) {
+        const ideaPath = `users/${user.uid}/ideas/${ideaId}`;
+        await setDoc(doc(db, ideaPath), {
+          ...newIdea,
+          userId: user.uid,
+          createdAt: serverTimestamp() // In Firestore we use server timestamp for security rules
+        });
+      }
+      
+      onSave(newIdea);
+      setActiveView('dashboard');
+    } catch (error) {
+      if (user) {
+        handleFirestoreError(error, OperationType.CREATE, `users/${user.uid}/ideas/${ideaId}`);
+      } else {
+        console.error("Failed to save locally", error);
+      }
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
     <div className="max-w-3xl mx-auto space-y-8 pb-32">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-[10px] uppercase tracking-[0.3em] text-orange-500 font-bold mb-2">Brainstorm Baru</h2>
+          <h2 className="text-[10px] uppercase tracking-[0.3em] text-accent font-bold mb-2">Brainstorm Baru</h2>
           <h1 className="text-4xl font-display font-bold tracking-tight">Tangkap Ide Mentah</h1>
         </div>
         <button 
@@ -66,7 +94,7 @@ export default function QuickCapture({ onSave, setActiveView }: QuickCaptureProp
               value={idea.title}
               onChange={e => setIdea({...idea, title: e.target.value})}
               placeholder="misal, Upacara Teh Cyberpunk"
-              className="w-full bg-transparent border-b-2 border-zinc-800 focus:border-orange-500 py-4 px-4 text-2xl font-bold transition-all outline-none placeholder:text-zinc-800"
+              className="w-full bg-transparent border-b-2 border-zinc-800 focus:border-accent py-4 px-4 text-2xl font-bold transition-all outline-none placeholder:text-zinc-800"
             />
           </div>
 
@@ -77,7 +105,7 @@ export default function QuickCapture({ onSave, setActiveView }: QuickCaptureProp
               onChange={e => setIdea({...idea, description: e.target.value})}
               placeholder="Jelaskan suasana, pencahayaan, dan alur cerita..."
               rows={4}
-              className="w-full bg-zinc-800/20 rounded-3xl p-6 text-lg text-zinc-300 focus:outline-none focus:ring-1 focus:ring-orange-500/50 transition-all border border-white/5 focus:bg-zinc-800/40"
+              className="w-full bg-zinc-800/20 rounded-3xl p-6 text-lg text-zinc-300 focus:outline-none focus:ring-1 focus:ring-accent/50 transition-all border border-white/5 focus:bg-zinc-800/40"
             />
           </div>
 
@@ -106,16 +134,21 @@ export default function QuickCapture({ onSave, setActiveView }: QuickCaptureProp
         <div className="flex flex-col sm:flex-row gap-4">
           <button 
             type="submit"
-            className="flex-1 bg-white text-black font-bold py-5 rounded-full flex items-center justify-center gap-2 hover:bg-orange-500 transition-all shadow-2xl shadow-orange-950/20 active:scale-95"
+            disabled={isSaving}
+            className="flex-1 bg-white text-black font-bold py-5 rounded-full flex items-center justify-center gap-2 hover:bg-accent transition-all shadow-2xl shadow-accent/20 active:scale-95 disabled:opacity-50"
           >
-            <Save className="w-5 h-5" />
-            Masukkan ke Sistem (Simpan)
+            {isSaving ? (
+              <Loader2 className="w-5 h-5 animate-spin" />
+            ) : (
+              <Save className="w-5 h-5" />
+            )}
+            {isSaving ? 'Menyimpan...' : 'Masukkan ke Sistem (Simpan)'}
           </button>
           <button 
             type="button"
             className="px-10 py-5 bg-zinc-900 border border-white/10 rounded-full font-bold hover:bg-zinc-800 transition-all flex items-center justify-center gap-2 text-zinc-400 hover:text-white"
           >
-            <Sparkles className="w-5 h-5 text-orange-500" />
+            <Sparkles className="w-5 h-5 text-accent" />
             Drafkan Prompt
           </button>
         </div>
@@ -145,12 +178,12 @@ function CustomDropdown({ label, options, selected, onChange }: { label: string,
         type="button"
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
-          "w-full flex items-center justify-between bg-zinc-800/40 rounded-2xl px-5 py-4 text-sm font-bold border border-white/5 transition-all text-left group hover:border-orange-500/30",
-          isOpen && "border-orange-500 bg-zinc-800"
+          "w-full flex items-center justify-between bg-zinc-800/40 rounded-2xl px-5 py-4 text-sm font-bold border border-white/5 transition-all text-left group hover:border-accent/30",
+          isOpen && "border-accent bg-zinc-800"
         )}
       >
         <span className="capitalize">{selected.replace('-', ' ')}</span>
-        <ChevronDown className={cn("w-4 h-4 text-zinc-600 transition-transform duration-300", isOpen && "rotate-180 text-orange-500")} />
+        <ChevronDown className={cn("w-4 h-4 text-zinc-600 transition-transform duration-300", isOpen && "rotate-180 text-accent")} />
       </button>
 
       <AnimatePresence>
@@ -173,7 +206,7 @@ function CustomDropdown({ label, options, selected, onChange }: { label: string,
                 className={cn(
                   "w-full px-5 py-3 text-left text-xs uppercase tracking-widest font-bold transition-all",
                   selected === option 
-                    ? "text-orange-400 bg-orange-500/10" 
+                    ? "text-accent bg-accent/10" 
                     : "text-zinc-500 hover:text-white hover:bg-white/5"
                 )}
               >

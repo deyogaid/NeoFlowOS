@@ -39,6 +39,7 @@ export default function PromptBuilder({ onSave, ideas }: PromptBuilderProps) {
   const [copied, setCopied] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysis, setAnalysis] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   
   const [prompt, setPrompt] = useState<Partial<Prompt>>({
     title: '',
@@ -67,10 +68,14 @@ Preset: ${activePreset}
   };
 
   const explainVisualLogic = async () => {
-    if (!prompt.layers?.scene && !prompt.layers?.subject) return;
+    if (!prompt.layers?.scene && !prompt.layers?.subject) {
+      setError("Berikan detail adegan atau subjek sebelum meminta analisis AI.");
+      return;
+    }
     
     setIsAnalyzing(true);
     setAnalysis(null);
+    setError(null);
     
     try {
       const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
@@ -86,14 +91,19 @@ Preset: ${activePreset}
       ${fullPromptText}`;
 
       const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: systemPrompt,
+        model: 'gemini-1.5-flash',
+        contents: [
+          {
+            role: 'user',
+            parts: [{ text: systemPrompt }]
+          }
+        ],
       });
 
       setAnalysis(response.text || "Tidak dapat menganalisis sinyal visual.");
-    } catch (error) {
-      console.error(error);
-      setAnalysis("Gangguan pada neural engine. Coba lagi nanti.");
+    } catch (err: any) {
+      console.error(err);
+      setError("Gangguan pada neural engine. Coba lagi nanti.");
     } finally {
       setIsAnalyzing(false);
     }
@@ -107,6 +117,7 @@ Preset: ${activePreset}
         [key]: value
       }
     });
+    setError(null);
   };
 
   return (
@@ -120,6 +131,20 @@ Preset: ${activePreset}
             Melapisi batasan-batasan ini menghasilkan hasil studio profesional.
           </p>
         </div>
+
+        <AnimatePresence>
+          {error && (
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="p-4 bg-orange-500/10 border border-orange-500/20 rounded-2xl flex items-center gap-3 text-orange-500 text-xs font-bold uppercase tracking-widest"
+            >
+              <div className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse" />
+              {error}
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Presets */}
         <div className="space-y-4">

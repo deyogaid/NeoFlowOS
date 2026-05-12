@@ -9,9 +9,21 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
+  app.use(express.json({ limit: '10mb' }));
+
   // API routes placeholder
   app.get("/api/health", (req, res) => {
     res.json({ status: "ok", timestamp: new Date().toISOString() });
+  });
+
+  app.post("/api/moodboard-analyses", (req, res) => {
+    const analysis = req.body;
+    console.log("Received moodboard analysis:", analysis.styleFingerprint);
+    // In a real app, we would save this to a database
+    res.status(201).json({ 
+      message: "Analysis saved successfully", 
+      id: analysis.id 
+    });
   });
 
   // Vite middleware for development

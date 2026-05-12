@@ -24,10 +24,12 @@ export default function CaptionGenerator() {
   const [result, setResult] = useState('');
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const generateCaption = async () => {
     if (!topic) return;
     setLoading(true);
+    setError(null);
     try {
       const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
       
@@ -38,14 +40,19 @@ export default function CaptionGenerator() {
       Berikan 3 variasi caption.`;
 
       const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: prompt,
+        model: 'gemini-1.5-flash',
+        contents: [
+          {
+            role: 'user',
+            parts: [{ text: prompt }]
+          }
+        ],
       });
 
       setResult(response.text || "Gagal mendapatkan respon.");
-    } catch (error) {
-      console.error(error);
-      setResult("Maaf, terjadi kesalahan saat menyusun narasi. Sinyal AI terganggu.");
+    } catch (err: any) {
+      console.error(err);
+      setError("Maaf, terjadi kesalahan saat menyusun narasi. Sinyal AI terganggu.");
     } finally {
       setLoading(false);
     }
@@ -70,12 +77,29 @@ export default function CaptionGenerator() {
             <label className="text-xs font-mono uppercase tracking-widest text-zinc-500 ml-2">Tentang apa rekaman ini?</label>
             <textarea 
               value={topic}
-              onChange={e => setTopic(e.target.value)}
+              onChange={e => {
+                setTopic(e.target.value);
+                setError(null);
+              }}
               placeholder="misal: Malam hujan di Tokyo, fokus pada pantulan neon di genangan air..."
               rows={4}
               className="w-full bg-zinc-800/30 border border-white/5 rounded-[2rem] p-6 text-sm focus:outline-none focus:border-orange-500 transition-all h-40 resize-none"
             />
           </div>
+
+          <AnimatePresence>
+            {error && (
+              <motion.div 
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="p-4 bg-orange-500/10 border border-orange-500/20 rounded-2xl flex items-center gap-3 text-orange-500 text-xs font-bold uppercase tracking-widest"
+              >
+                <div className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse" />
+                {error}
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           <div className="grid grid-cols-2 gap-4">
              <AnimatedDropdown 

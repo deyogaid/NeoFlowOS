@@ -83,7 +83,13 @@ const KanbanCard: React.FC<KanbanCardProps> = ({ idea, onStatusChange }) => {
   return (
     <motion.div 
       layout
-      className="p-6 rounded-3xl bg-[#0a0a0a] border border-white/5 hover:border-orange-500/30 transition-all cursor-default group relative"
+      whileHover={{ 
+        scale: 1.02,
+        boxShadow: "0 0 25px rgba(249, 115, 22, 0.08)",
+        borderColor: "rgba(249, 115, 22, 0.4)"
+      }}
+      transition={{ type: "spring", stiffness: 400, damping: 25 }}
+      className="p-6 rounded-3xl bg-[#0a0a0a] border border-white/5 transition-colors cursor-default group relative"
     >
       <div className="space-y-4">
         <div className="flex items-center justify-between">

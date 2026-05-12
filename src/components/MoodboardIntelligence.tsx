@@ -20,11 +20,13 @@ export default function MoodboardIntelligence() {
   const [images, setImages] = useState<string[]>([]);
   const [analyzing, setAnalyzing] = useState(false);
   const [result, setResult] = useState<MoodboardAnalysis | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files: File[] = Array.from(e.target.files || []);
+    setError(null);
     if (files.length + images.length > 5) {
-      alert("Maksimal 5 gambar untuk analisis moodboard.");
+      setError("Maksimal 5 gambar untuk analisis moodboard.");
       return;
     }
 
@@ -39,12 +41,14 @@ export default function MoodboardIntelligence() {
 
   const removeImage = (index: number) => {
     setImages(prev => prev.filter((_, i) => i !== index));
+    setError(null);
   };
 
   const analyzeMoodboard = async () => {
     if (images.length < 1) return;
 
     setAnalyzing(true);
+    setError(null);
     try {
       const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
       
@@ -75,7 +79,7 @@ export default function MoodboardIntelligence() {
       Do not include any markdown formatting like \`\`\`json. Just the raw JSON.`;
 
       const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
+        model: 'gemini-1.5-flash',
         contents: [
           {
             role: 'user',
@@ -89,16 +93,38 @@ export default function MoodboardIntelligence() {
 
       const text = response.text || "{}";
       const cleanedText = text.replace(/```json|```/g, '').trim();
-      const analysisData = JSON.parse(cleanedText);
+      let analysisData;
+      try {
+        analysisData = JSON.parse(cleanedText);
+      } catch (e) {
+        throw new Error("Gagal memproses format data dari AI. Silakan coba lagi.");
+      }
 
-      setResult({
+      const finalResult: MoodboardAnalysis = {
         id: Math.random().toString(36).substring(7),
         images: [...images],
         ...analysisData,
         createdAt: Date.now()
-      });
-    } catch (error) {
-      console.error("Moodboard Analysis Error:", error);
+      };
+
+      setResult(finalResult);
+
+      // Save to backend
+      try {
+        const res = await fetch('/api/moodboard-analyses', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(finalResult),
+        });
+        if (!res.ok) throw new Error("Gagal menyimpan ke server");
+      } catch (saveError) {
+        console.warn("Analysis cached locally but failed to sync with cloud.");
+      }
+    } catch (err: any) {
+      console.error("Moodboard Analysis Error:", err);
+      setError(err.message || "Terjadi kesalahan saat menganalisis gambar. Pastikan koneksi stabil.");
     } finally {
       setAnalyzing(false);
     }
@@ -116,9 +142,23 @@ export default function MoodboardIntelligence() {
         </div>
         <div className="flex items-center gap-4 bg-zinc-900/50 p-2 rounded-2xl border border-white/5">
            <Scan className="w-5 h-5 text-orange-500" />
-           <div className="text-xs font-bold uppercase tracking-widest text-zinc-300">Pemindai Neural Aktif</div>
+           <div className="text-xs font-bold uppercase tracking-widest text-zinc-300">Pemindaian Cerdas Aktif</div>
         </div>
       </div>
+
+      <AnimatePresence>
+        {error && (
+          <motion.div 
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="p-4 bg-red-500/10 border border-red-500/20 rounded-2xl flex items-center gap-3 text-red-500 text-sm font-medium"
+          >
+            <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+            {error}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {!result ? (
         <div className="space-y-8">

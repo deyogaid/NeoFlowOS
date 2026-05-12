@@ -60,14 +60,14 @@ export default function VisualDNA() {
     <div className="space-y-12 pb-12">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
-          <h2 className="text-[10px] uppercase tracking-[0.3em] text-orange-500 font-bold mb-2">Inti Utama</h2>
+          <h2 className="text-[10px] uppercase tracking-[0.3em] text-accent font-bold mb-2">Inti Utama</h2>
           <h1 className="text-4xl font-display font-bold tracking-tight">Mesin DNA Visual</h1>
           <p className="mt-4 text-zinc-400 max-w-xl leading-relaxed">
             DNA Visual mendefinisikan hukum estetika yang tidak dapat diubah dari studio Anda. Hasil AI dan suntingan manusia harus selaras dengan parameter ini untuk menjaga kohesi merek.
           </p>
         </div>
         <div className="flex items-center gap-4 bg-zinc-900/50 p-2 rounded-2xl border border-white/5">
-           <Zap className="w-5 h-5 text-orange-500 animate-pulse" />
+           <Zap className="w-5 h-5 text-accent animate-pulse" />
            <div className="text-xs font-bold uppercase tracking-widest text-zinc-300">Diterapkan Sistem</div>
         </div>
       </div>
@@ -106,8 +106,8 @@ export default function VisualDNA() {
           rules={dna.colorRules}
           onAdd={() => addRule('colorRules')}
           onRemove={(idx) => removeRule('colorRules', idx)}
-          color="border-amber-500/30"
-          accent="bg-amber-500"
+          color="border-accent/30"
+          accent="bg-accent"
         />
       </div>
 
@@ -152,7 +152,7 @@ export default function VisualDNA() {
       </section>
 
       <div className="p-8 rounded-[3rem] bg-zinc-900/40 border border-white/5 flex items-start gap-6">
-        <div className="p-4 bg-zinc-800 rounded-2xl text-orange-500">
+        <div className="p-4 bg-zinc-800 rounded-2xl text-accent">
            <Info className="w-6 h-6" />
         </div>
         <div className="space-y-2">
